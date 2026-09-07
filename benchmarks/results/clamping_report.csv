@@ -1,0 +1,11 @@
+format,probe,values,overflow,underflow,in_range,clamped_to,wrapped
+LNS16,extreme,500,250,250,0,2.955e-39 .. 3.384e+38,False
+LNS16,beyond-max,5,5,0,0,3.384e+38 .. 3.384e+38,False
+LNS16,beyond-min,5,0,5,0,2.955e-39 .. 2.955e-39,False
+LNS16,large(1e6),3,0,0,3,-,False
+LNS16,small(1e-6),3,0,0,3,-,False
+LNS8,extreme,500,250,250,0,0.00426 .. 234.8,False
+LNS8,beyond-max,5,5,0,0,234.8 .. 234.8,False
+LNS8,beyond-min,5,0,5,0,0.00426 .. 0.00426,False
+LNS8,large(1e6),3,3,0,0,234.8 .. 234.8,False
+LNS8,small(1e-6),3,0,3,0,0.00426 .. 0.00426,False

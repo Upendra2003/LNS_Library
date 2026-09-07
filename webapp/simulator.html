@@ -1086,9 +1086,12 @@ if (typeof module !== "undefined" && module.exports) { module.exports = LNS; }
       '<path d="' + lutPath + '" fill="none" stroke="var(--warn)" stroke-width="2.5" opacity="0.95"/>' +
       '<path d="' + exactPath + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>' +
       '<text x="' + (W / 2) + '" y="' + (H - 2) + '" text-anchor="middle">d  (log-domain gap)</text>' +
-      '<text x="' + (padL + 8) + '" y="' + (padT + 12) + '" fill="var(--accent)">exact log2(1 + 2^d)</text>' +
-      '<text x="' + (padL + 8) + '" y="' + (padT + 26) + '" fill="var(--warn)">LUT, ' +
-        lutAdd.size + ' entries on the ' + fmt.name + ' grid</text>' +
+      // Legend sits top-right: the curve runs from top-left to bottom-right, so
+      // that corner is the only reliably empty part of the plot area.
+      '<text x="' + (W - padR - 4) + '" y="' + (padT + 12) + '" text-anchor="end" ' +
+        'fill="var(--accent)">exact log2(1 + 2^d)</text>' +
+      '<text x="' + (W - padR - 4) + '" y="' + (padT + 26) + '" text-anchor="end" ' +
+        'fill="var(--warn)">LUT, ' + lutAdd.size + ' entries on the ' + fmt.name + ' grid</text>' +
       '</svg>';
   }
 

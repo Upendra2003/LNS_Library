@@ -1035,7 +1035,14 @@ def build_readme_section(report: Report) -> str:
         )
     )
     parts.append("")
-    parts.append("#### Error by input category (round-trip conversion)")
+    parts.append("#### Mean error by input category (round-trip conversion)")
+    parts.append("")
+    parts.append(
+        "Mean error, so out-of-range categories show their clamping. Read the LNS16 row "
+        "across: the error barely moves from `positive` to `large`, which is the flat "
+        "relative error of a log format. The LNS8 row explodes on `small`/`large` and the "
+        "FP16 row on `small`, because those values are outside those formats' range."
+    )
     parts.append("")
     categories = [c for c in utils.CATEGORY_NAMES]
     conv_rows = []
@@ -1047,7 +1054,7 @@ def build_readme_section(report: Report) -> str:
         conv_rows.append([fmt_name, *cells])
     parts.append(_markdown_table(["Format", *categories], conv_rows))
     parts.append("")
-    parts.append("#### Error by input category (addition, exact log-add)")
+    parts.append("#### Mean error by input category (addition, exact log-add)")
     parts.append("")
     add_rows = []
     for fmt_name, mode in (("LNS16", "exact"), ("LNS8", "exact"), ("FP16", "n/a")):
