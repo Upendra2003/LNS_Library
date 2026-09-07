@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LNS Arithmetic Simulator</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-2: #f0f2f5;
+    --ink: #16191d;
+    --ink-dim: #5c6570;
+    --line: #d9dee4;
+    --accent: #2f6fd0;
+    --accent-soft: #e6effb;
+    --warn: #b3670a;
+    --warn-soft: #fdf1de;
+    --bad: #c0392b;
+    --bad-soft: #fbeae8;
+    --good: #1f7a4d;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --panel: #1c2027;
+      --panel-2: #232830;
+      --ink: #e6e9ee;
+      --ink-dim: #98a2ae;
+      --line: #333a44;
+      --accent: #6aa6ff;
+      --accent-soft: #1e2a3d;
+      --warn: #e0a458;
+      --warn-soft: #33291a;
+      --bad: #ef7d70;
+      --bad-soft: #35211f;
+      --good: #6ecf9d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+  header h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 4px; color: var(--ink-dim); max-width: 78ch; }
+  .demo-note {
+    margin: 16px 0 24px; padding: 10px 14px; border-radius: 8px;
+    background: var(--accent-soft); border: 1px solid var(--line);
+    color: var(--ink); font-size: 13.5px;
+  }
+  .demo-note b { font-weight: 600; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 18px;
+  }
+  .panel > h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-dim); margin: 0 0 14px; font-weight: 600;
+  }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  label { display: block; font-size: 12px; color: var(--ink-dim); margin-bottom: 5px; font-weight: 500; }
+  select, input[type=text] {
+    width: 100%; padding: 8px 10px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+    font: inherit; font-size: 14px;
+  }
+  input[type=text] { font-family: var(--mono); }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input:disabled, select:disabled { opacity: 0.42; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); font-weight: 600; }
+  td.num, th.num, td.mono { font-family: var(--mono); }
+  .scroll { overflow-x: auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .chip {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 12px; min-width: 130px;
+  }
+  .chip .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); }
+  .chip .v { font-family: var(--mono); font-size: 14px; margin-top: 2px; }
+  pre.trace {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; margin: 0; overflow-x: auto;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.7; white-space: pre;
+  }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .stat h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
+  .stat .big { font-family: var(--mono); font-size: 21px; word-break: break-all; }
+  .stat .sub { font-family: var(--mono); font-size: 12.5px; color: var(--ink-dim); margin-top: 8px; white-space: pre; }
+  .notice { border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 13.5px; border: 1px solid; }
+  .notice.info { background: var(--accent-soft); border-color: var(--accent); }
+  .notice.warn { background: var(--warn-soft); border-color: var(--warn); }
+  .notice.bad  { background: var(--bad-soft);  border-color: var(--bad); }
+  .hint { font-size: 12.5px; color: var(--ink-dim); margin: -6px 0 12px; }
+  .flag-over { color: var(--bad); font-weight: 600; }
+  .flag-under { color: var(--warn); font-weight: 600; }
+  .ok { color: var(--good); }
+  svg text { fill: var(--ink-dim); font-size: 10px; font-family: var(--mono); }
+  footer { color: var(--ink-dim); font-size: 12.5px; margin-top: 26px; }
+  code { font-family: var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Logarithmic Number System arithmetic simulator</h1>
+  <p>
+    Encode two numbers into LNS, run one operation entirely on the packed codes, and see
+    every step: the sign/log encoding, the log-domain gap &Delta;L, which correction-term
+    branch was taken, the correction value, the resulting code, and the decoded float.
+  </p>
+</header>
+
+<div class="demo-note">
+  <b>Demo companion.</b> This page is a dependency-free JavaScript port of
+  <code>lns_arith</code>'s <code>formats.py</code>, <code>convert.py</code>,
+  <code>logadd.py</code> and <code>ops.py</code>, so it runs standalone from a
+  <code>file://</code> URL with no Python and no server. The full simulator &mdash; which
+  imports the real package and adds the batch error experiment with charts &mdash; is
+  <code>webapp/app.py</code>: run <code>streamlit run webapp/app.py</code>. The two agree
+  bit for bit; a test in this repository checks that.
+</div>
+
+<section class="panel">
+  <h2>Inputs</h2>
+  <div class="controls">
+    <div>
+      <label for="preset">Preset</label>
+      <select id="preset"></select>
+    </div>
+    <div>
+      <label for="op">Operation</label>
+      <select id="op">
+        <option value="convert">convert (round-trip)</option>
+        <option value="add" selected>add &nbsp;(a + b)</option>
+        <option value="sub">subtract &nbsp;(a &minus; b)</option>
+        <option value="mul">multiply &nbsp;(a &times; b)</option>
+        <option value="mac">MAC &nbsp;(a &times; b + acc)</option>
+      </select>
+    </div>
+    <div>
+      <label for="a">a</label>
+      <input type="text" id="a" value="3.5" spellcheck="false">
+    </div>
+    <div>
+      <label for="b">b</label>
+      <input type="text" id="b" value="-1.25" spellcheck="false">
+    </div>
+    <div>
+      <label for="acc">acc</label>
+      <input type="text" id="acc" value="0.5" spellcheck="false">
+    </div>
+  </div>
+  <div class="controls" style="margin-top:14px">
+    <div>
+      <label for="fmt">Target LNS format</label>
+      <select id="fmt">
+        <option value="LNS16" selected>LNS16 (1+8+7 bits)</option>
+        <option value="LNS8">LNS8 (1+4+3 bits)</option>
+      </select>
+    </div>
+    <div>
+      <label for="src">Source float format</label>
+      <select id="src">
+        <option value="fp32" selected>FP32</option>
+        <option value="fp16">FP16</option>
+      </select>
+    </div>
+    <div>
+      <label for="mode">Log-add mode</label>
+      <select id="mode">
+        <option value="exact" selected>exact (software ideal)</option>
+        <option value="lut">LUT (hardware table)</option>
+      </select>
+    </div>
+    <div>
+      <label for="decimate">LUT resolution</label>
+      <select id="decimate" disabled>
+        <option value="1" selected>full (one entry per log-step)</option>
+        <option value="2">1/2 of format step</option>
+        <option value="4">1/4 of format step</option>
+        <option value="8">1/8 of format step</option>
+        <option value="16">1/16 of format step</option>
+        <option value="32">1/32 of format step</option>
+      </select>
+    </div>
+  </div>
+  <div id="input-error"></div>
+</section>
+
+<section class="panel">
+  <h2>1 &middot; Encode the inputs</h2>
+  <p class="hint" id="encode-hint"></p>
+  <div class="scroll"><table id="encode-table"></table></div>
+  <div id="encode-flags"></div>
+</section>
+
+<section class="panel">
+  <h2>2 &middot; Run the operation in the log domain</h2>
+  <div class="chips" id="op-chips"></div>
+  <pre class="trace" id="trace"></pre>
+  <p class="hint" id="trace-hint"></p>
+</section>
+
+<section class="panel">
+  <h2>3 &middot; Result and comparison</h2>
+  <div class="cols" id="result-cols"></div>
+  <div id="result-notices"></div>
+</section>
+
+<section class="panel">
+  <h2>4 &middot; Every configuration, same inputs</h2>
+  <p class="hint">
+    The same operands through both formats and every log-add mode. A full-resolution
+    table always matches exact mode, because &Delta;L is a whole number of log-steps and
+    therefore lands exactly on a table entry; only a decimated table differs.
+  </p>
+  <div class="scroll"><table id="compare-table"></table></div>
+</section>
+
+<section class="panel">
+  <h2>Format reference</h2>
+  <div class="scroll"><table id="format-table"></table></div>
+  <div class="cols" style="margin-top:18px">
+    <div>
+      <p class="hint" style="margin-top:0">
+        The log-add correction term for the selected format: the smooth line is the exact
+        function, the stepped line is the quantised table a hardware implementation would
+        hold. Addition needs this; multiplication needs nothing at all.
+      </p>
+      <div id="curve"></div>
+    </div>
+    <div>
+      <p class="hint" style="margin-top:0">
+        <b>Encoding.</b> <code>L = (code &minus; bias) / 2^frac_bits</code> is the base-2
+        logarithm of the magnitude; the sign is a separate bit. Encoding rounds
+        <code>log2(|x|) &times; scale + bias</code> to nearest and clamps &mdash; it never
+        wraps.
+      </p>
+      <p class="hint">
+        <b>Zero.</b> Code 0 is reserved as an exact-zero sentinel instead of being used as
+        the most-negative magnitude slot. That costs one log-step of range at the bottom
+        and buys an exact zero &mdash; a good trade for DNN tensors, which are full of
+        zeros from ReLU, padding and masking.
+      </p>
+      <p class="hint">
+        <b>Overflow / underflow.</b> Out-of-range magnitudes saturate at the extreme code
+        and raise a flag. Underflow clamps to the smallest nonzero code rather than
+        flushing to zero, because zero is reserved for exact zero.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Companion to the <code>lns_arith</code> Python package. Every number on this page is
+  computed in the log domain from packed LNS codes; the decode to a float happens once, at
+  the very end, purely for the comparison.
+</footer>
+
+</div>
+
+<script id="lns-core">
+/* --------------------------------------------------------------------------
+ * lns_arith core, ported to JavaScript.
+ *
+ * This is a faithful port of formats.py / convert.py / logadd.py / ops.py.
+ * It is kept in one self-contained block with no DOM access so that it can be
+ * extracted and differentially tested against the Python implementation
+ * (see tests/test_ops.py :: the JS-parity check, and tools/check_js_parity.py).
+ * ------------------------------------------------------------------------ */
+const LNS = (function () {
+  "use strict";
+
+  const LN2 = Math.log(2);
+
+  /* ---- formats ---------------------------------------------------------- */
+
+  function makeFormat(name, intBits, fracBits, lutDomain) {
+    const codeBits = intBits + fracBits;
+    const scale = Math.pow(2, fracBits);
+    const bias = Math.pow(2, codeBits - 1);
+    const maxCode = Math.pow(2, codeBits) - 1;
+    return {
+      name: name,
+      intBits: intBits,
+      fracBits: fracBits,
+      codeBits: codeBits,
+      totalBits: codeBits + 1,
+      scale: scale,
+      bias: bias,
+      logStep: 1 / scale,
+      zeroCode: 0,
+      minCode: 1,
+      maxCode: maxCode,
+      minLog: (1 - bias) / scale,
+      maxLog: (maxCode - bias) / scale,
+      minValue: Math.pow(2, (1 - bias) / scale),
+      maxValue: Math.pow(2, (maxCode - bias) / scale),
+      signShift: codeBits,
+      codeMask: maxCode,
+      wordMask: Math.pow(2, codeBits + 1) - 1,
+      lutDomain: lutDomain,
+      maxRelStepError: Math.pow(2, 1 / scale / 2) - 1
+    };
+  }
+
+  const FORMATS = {
+    LNS16: makeFormat("LNS16", 8, 7, 16),
+    LNS8: makeFormat("LNS8", 4, 3, 8)
+  };
+
+  /** Round-to-nearest, ties away from -inf -- matches formats.round_to_nearest. */
+  function roundToNearest(x) {
+    return Math.floor(x + 0.5);
+  }
+
+  function pack(sign, code, fmt) {
+    if (code === fmt.zeroCode) return 0;
+    return ((sign & 1) * (fmt.codeMask + 1)) + code;
+  }
+  function signOf(word, fmt) {
+    return Math.floor(word / (fmt.codeMask + 1)) & 1;
+  }
+  function codeOf(word, fmt) {
+    return word % (fmt.codeMask + 1);
+  }
+  function isZero(word, fmt) {
+    return codeOf(word, fmt) === fmt.zeroCode;
+  }
+  function negate(word, fmt) {
+    if (isZero(word, fmt)) return 0;
+    return pack(signOf(word, fmt) ^ 1, codeOf(word, fmt), fmt);
+  }
+  function logOfCode(code, fmt) {
+    return (code - fmt.bias) / fmt.scale;
+  }
+  function clampCode(code, fmt) {
+    if (code > fmt.maxCode) return { code: fmt.maxCode, overflow: true, underflow: false };
+    if (code < fmt.minCode) return { code: fmt.minCode, overflow: false, underflow: true };
+    return { code: code, overflow: false, underflow: false };
+  }
+
+  /* ---- IEEE source rounding -------------------------------------------- */
+
+  const hasFloat16 = typeof Float16Array !== "undefined";
+  const f16buf = hasFloat16 ? new Float16Array(1) : null;
+
+  /** Round to binary16 by hand (round-to-nearest-even), for older engines. */
+  function fp16Manual(x) {
+    if (Number.isNaN(x)) return NaN;
+    if (!Number.isFinite(x) || x === 0) return x;
+    const sign = x < 0 ? -1 : 1;
+    const a = Math.abs(x);
+    if (a < Math.pow(2, -25)) return sign * 0;
+    let e = Math.floor(Math.log2(a));
+    if (Math.pow(2, e) > a) e -= 1;
+    if (Math.pow(2, e + 1) <= a) e += 1;
+    if (e < -14) e = -14;                       // subnormal: fixed exponent
+    const step = Math.pow(2, e - 10);
+    const scaled = a / step;
+    let q = Math.floor(scaled);
+    const frac = scaled - q;
+    if (frac > 0.5 || (frac === 0.5 && q % 2 === 1)) q += 1;
+    const v = q * step;
+    if (v > 65504) return sign * Infinity;
+    return sign * v;
+  }
+
+  function toFp32(x) {
+    return Math.fround(x);
+  }
+  function toFp16(x) {
+    if (hasFloat16) { f16buf[0] = x; return f16buf[0]; }
+    return fp16Manual(x);
+  }
+  function quantizeSource(x, source) {
+    if (source === "fp32") return toFp32(x);
+    if (source === "fp16") return toFp16(x);
+    return x;
+  }
+
+  /* ---- conversion ------------------------------------------------------- */
+
+  function encode(x, fmt, source) {
+    const xf = quantizeSource(x, source || "fp32");
+    if (Number.isNaN(xf)) throw new Error("cannot encode NaN into an LNS format");
+    if (xf === 0) {
+      return { word: 0, overflow: false, underflow: false, sourceValue: 0, log2Magnitude: -Infinity };
+    }
+    const sign = xf < 0 ? 1 : 0;
+    const magnitude = Math.abs(xf);
+    let code, overflow, underflow;
+    if (!Number.isFinite(magnitude)) {
+      code = fmt.maxCode; overflow = true; underflow = false;
+    } else {
+      const clamped = clampCode(roundToNearest(Math.log2(magnitude) * fmt.scale + fmt.bias), fmt);
+      code = clamped.code; overflow = clamped.overflow; underflow = clamped.underflow;
+    }
+    return {
+      word: pack(sign, code, fmt),
+      overflow: overflow,
+      underflow: underflow,
+      sourceValue: xf,
+      log2Magnitude: Number.isFinite(magnitude) ? Math.log2(magnitude) : Infinity
+    };
+  }
+
+  /** Decode to a float. Used for display only -- never inside an operation. */
+  function decode(word, fmt) {
+    if (isZero(word, fmt)) return 0;
+    const magnitude = Math.pow(2, logOfCode(codeOf(word, fmt), fmt));
+    return signOf(word, fmt) ? -magnitude : magnitude;
+  }
+
+  function describe(word, fmt) {
+    const hexDigits = Math.ceil(fmt.totalBits / 4);
+    const hex = "0x" + word.toString(16).toUpperCase().padStart(hexDigits, "0");
+    if (isZero(word, fmt)) return fmt.name + " word=" + hex + " ZERO (reserved code 0)";
+    const c = codeOf(word, fmt);
+    const L = logOfCode(c, fmt);
+    return fmt.name + " word=" + hex + " sign=" + signOf(word, fmt) + " code=" + c +
+      " L=" + signedFixed(L, 7) + " -> " + decode(word, fmt).toPrecision(6);
+  }
+
+  function binaryWord(word, fmt) {
+    return signOf(word, fmt) + " " + codeOf(word, fmt).toString(2).padStart(fmt.codeBits, "0");
+  }
+
+  /* ---- log-add correction term ------------------------------------------ */
+
+  function exactCorrection(d, kind) {
+    if (d > 0) throw new Error("correction term is defined for d <= 0, got " + d);
+    if (kind === "add") return Math.log1p(Math.pow(2, d)) / LN2;
+    if (kind === "sub") {
+      if (d === 0) return -Infinity;
+      return Math.log2(-Math.expm1(d * LN2));
+    }
+    throw new Error("unknown correction kind " + kind);
+  }
+
+  function defaultLutSize(fmt) {
+    return Math.round(fmt.lutDomain * fmt.scale) + 1;
+  }
+
+  const lutCache = new Map();
+
+  function getLut(fmt, kind, size) {
+    const entries = size || defaultLutSize(fmt);
+    const key = fmt.name + "|" + kind + "|" + entries;
+    if (lutCache.has(key)) return lutCache.get(key);
+    const step = fmt.lutDomain / (entries - 1);
+    const table = new Array(entries);
+    for (let i = 0; i < entries; i++) {
+      const value = exactCorrection(-i * step, kind);
+      // Hardware stores the correction on the format's own fixed-point grid.
+      table[i] = Number.isFinite(value) ? roundToNearest(value * fmt.scale) / fmt.scale : value;
+    }
+    const lut = {
+      fmt: fmt, kind: kind, size: entries, step: step, domain: fmt.lutDomain, entries: table,
+      lookup: function (d) {
+        if (d > 0) throw new Error("correction term is defined for d <= 0, got " + d);
+        const gap = -d;
+        if (gap >= this.domain) return 0;
+        let index = roundToNearest(gap / this.step);
+        if (index >= this.size) index = this.size - 1;
+        // Address 0 of a sub table is -inf (exact cancellation) and must only be
+        // reachable by d === 0; a decimated table would otherwise annihilate a
+        // small but nonzero gap.
+        else if (index === 0 && this.kind === "sub" && gap > 0) index = 1;
+        return this.entries[index];
+      }
+    };
+    lutCache.set(key, lut);
+    return lut;
+  }
+
+  function correction(d, kind, fmt, mode, lutSize) {
+    if (mode === "lut") return getLut(fmt, kind, lutSize).lookup(d);
+    return exactCorrection(d, kind);
+  }
+
+  /* ---- arithmetic (packed codes in, packed codes out) ------------------- */
+
+  function mul(aWord, bWord, fmt, trace) {
+    if (trace) {
+      trace.op = "mul"; trace.format = fmt.name;
+      trace.a = describe(aWord, fmt); trace.b = describe(bWord, fmt);
+    }
+    if (isZero(aWord, fmt) || isZero(bWord, fmt)) {
+      if (trace) {
+        trace.branch = "zero-operand";
+        trace.steps = ["one operand is the reserved zero code -> product is exact zero"];
+        trace.result = describe(0, fmt);
+      }
+      return { word: 0, overflow: false, underflow: false };
+    }
+    const ca = codeOf(aWord, fmt), cb = codeOf(bWord, fmt);
+    const sa = signOf(aWord, fmt), sb = signOf(bWord, fmt);
+    const sign = sa ^ sb;
+    const rawCode = ca + cb - fmt.bias;
+    const clamped = clampCode(rawCode, fmt);
+    const word = pack(sign, clamped.code, fmt);
+    if (trace) {
+      const la = logOfCode(ca, fmt), lb = logOfCode(cb, fmt);
+      trace.branch = "log-domain add";
+      trace.sign = sign; trace.rawCode = rawCode; trace.resultCode = clamped.code;
+      trace.overflow = clamped.overflow; trace.underflow = clamped.underflow;
+      trace.result = describe(word, fmt);
+      trace.steps = [
+        "sign = sign(a) XOR sign(b) = " + sa + " XOR " + sb + " = " + sign,
+        "L_a + L_b = " + signedFixed(la, 7) + " + " + signedFixed(lb, 7) + " = " + signedFixed(la + lb, 7),
+        "code = c_a + c_b - bias = " + ca + " + " + cb + " - " + fmt.bias + " = " + rawCode + " (exact)",
+        "clamp to [" + fmt.minCode + ", " + fmt.maxCode + "] -> " + clamped.code +
+          (clamped.overflow ? " (OVERFLOW)" : clamped.underflow ? " (UNDERFLOW)" : "")
+      ];
+    }
+    return { word: word, overflow: clamped.overflow, underflow: clamped.underflow };
+  }
+
+  function add(aWord, bWord, fmt, mode, lutSize, trace) {
+    const aZero = isZero(aWord, fmt), bZero = isZero(bWord, fmt);
+    if (trace) {
+      trace.op = "add"; trace.format = fmt.name; trace.mode = mode;
+      trace.a = describe(aWord, fmt); trace.b = describe(bWord, fmt);
+    }
+    if (aZero && bZero) {
+      if (trace) {
+        trace.branch = "both-zero";
+        trace.steps = ["both operands are the zero sentinel -> result is exact zero"];
+        trace.result = describe(0, fmt);
+      }
+      return { word: 0, overflow: false, underflow: false };
+    }
+    if (aZero || bZero) {
+      const other = aZero ? bWord : aWord;
+      if (trace) {
+        trace.branch = "zero-operand";
+        trace.steps = [(aZero ? "a" : "b") + " is the zero sentinel -> result is the other operand, bit for bit"];
+        trace.result = describe(other, fmt);
+      }
+      return { word: other, overflow: false, underflow: false };
+    }
+
+    const ca = codeOf(aWord, fmt), cb = codeOf(bWord, fmt);
+    const sa = signOf(aWord, fmt), sb = signOf(bWord, fmt);
+    const sameSign = sa === sb;
+
+    if (!sameSign && ca === cb) {
+      if (trace) {
+        trace.branch = "exact-cancellation";
+        trace.steps = [
+          "opposite signs with identical codes: |a| == |b| exactly",
+          "log2(1 - 2**0) = -inf, handled as a code comparison -> exact zero sentinel"
+        ];
+        trace.result = describe(0, fmt);
+      }
+      return { word: 0, overflow: false, underflow: false };
+    }
+
+    let cHi, cLo, sign;
+    if (ca >= cb) { cHi = ca; cLo = cb; sign = sa; }
+    else { cHi = cb; cLo = ca; sign = sb; }
+
+    const dCode = cLo - cHi;
+    const d = dCode / fmt.scale;
+    const kind = sameSign ? "add" : "sub";
+    const corr = correction(d, kind, fmt, mode, lutSize);
+
+    if (corr === -Infinity) {
+      if (trace) {
+        trace.branch = "exact-cancellation";
+        trace.steps = ["correction term is -inf -> result is the exact zero sentinel"];
+        trace.result = describe(0, fmt);
+      }
+      return { word: 0, overflow: false, underflow: false };
+    }
+
+    const deltaCode = roundToNearest(corr * fmt.scale);
+    const rawCode = cHi + deltaCode;
+    const clamped = clampCode(rawCode, fmt);
+    const word = pack(sign, clamped.code, fmt);
+
+    if (trace) {
+      const formula = sameSign ? "log2(1 + 2**d)" : "log2(1 - 2**d)";
+      trace.branch = sameSign ? "same-sign" : "opposite-sign";
+      trace.kind = kind; trace.formula = formula; trace.sign = sign;
+      trace.codeHi = cHi; trace.codeLo = cLo; trace.dCode = dCode; trace.d = d;
+      trace.correction = corr; trace.deltaCode = deltaCode;
+      trace.rawCode = rawCode; trace.resultCode = clamped.code;
+      trace.overflow = clamped.overflow; trace.underflow = clamped.underflow;
+      trace.result = describe(word, fmt);
+      trace.steps = [
+        "signs " + (sameSign ? "match" : "differ") + " -> use " + formula,
+        "larger code c_hi = " + cHi + " (L = " + signedFixed(logOfCode(cHi, fmt), 7) + "), " +
+          "smaller c_lo = " + cLo + " (L = " + signedFixed(logOfCode(cLo, fmt), 7) + ")",
+        "d = (c_lo - c_hi)/scale = " + dCode + "/" + fmt.scale + " = " + signedFixed(d, 7),
+        "correction = " + formula + " = " + signedFixed(corr, 7) + "  [" + mode + " mode]",
+        "delta_code = round(correction * scale) = round(" + signedFixed(corr * fmt.scale, 4) + ") = " +
+          (deltaCode >= 0 ? "+" : "") + deltaCode,
+        "code = c_hi + delta_code = " + cHi + " " + (deltaCode >= 0 ? "+" : "") + deltaCode + " = " + rawCode +
+          (clamped.overflow || clamped.underflow
+            ? " -> clamped to " + clamped.code + (clamped.overflow ? " (OVERFLOW)" : " (UNDERFLOW)")
+            : "")
+      ];
+    }
+    return { word: word, overflow: clamped.overflow, underflow: clamped.underflow };
+  }
+
+  function sub(aWord, bWord, fmt, mode, lutSize, trace) {
+    const result = add(aWord, negate(bWord, fmt), fmt, mode, lutSize, trace);
+    if (trace) {
+      trace.op = "sub";
+      trace.steps = ["a - b is evaluated as a + (-b): flip b's sign bit"].concat(trace.steps || []);
+    }
+    return result;
+  }
+
+  function mac(aWord, bWord, accWord, fmt, mode, lutSize, trace) {
+    const mulTrace = trace ? {} : null;
+    const addTrace = trace ? {} : null;
+    const product = mul(aWord, bWord, fmt, mulTrace);
+    const total = add(product.word, accWord, fmt, mode, lutSize, addTrace);
+    if (trace) {
+      trace.op = "mac"; trace.format = fmt.name; trace.mode = mode;
+      trace.a = describe(aWord, fmt); trace.b = describe(bWord, fmt);
+      trace.acc = describe(accWord, fmt);
+      trace.product = mulTrace.result;
+      trace.branch = addTrace.branch;
+      trace.d = addTrace.d; trace.correction = addTrace.correction;
+      trace.formula = addTrace.formula;
+      trace.result = addTrace.result;
+      trace.steps = ["step 1 - multiply a * b (exact code addition):"]
+        .concat((mulTrace.steps || []).map(function (s) { return "    " + s; }))
+        .concat(["step 2 - accumulate (a*b) + acc:"])
+        .concat((addTrace.steps || []).map(function (s) { return "    " + s; }));
+    }
+    return {
+      word: total.word,
+      overflow: product.overflow || total.overflow,
+      underflow: product.underflow || total.underflow
+    };
+  }
+
+  /* ---- error metrics (reporting only) ----------------------------------- */
+
+  function absError(reference, test) {
+    if (reference === test) return 0;
+    if (!Number.isFinite(reference) || !Number.isFinite(test)) return Infinity;
+    return Math.abs(reference - test);
+  }
+  function relativeError(reference, test) {
+    if (reference === 0) return absError(reference, test);
+    if (reference === test) return 0;
+    if (!Number.isFinite(reference) || !Number.isFinite(test)) return Infinity;
+    return Math.abs(reference - test) / Math.abs(reference);
+  }
+  function errorMetric(reference, test) {
+    if (reference === 0) return { error: absError(reference, test), kind: "abs" };
+    return { error: relativeError(reference, test), kind: "rel" };
+  }
+
+  /** FP reference for one operation, rounded to the given precision each step. */
+  function reference(op, a, b, acc, cast) {
+    const A = cast(a), B = cast(b), C = cast(acc);
+    switch (op) {
+      case "convert": return A;
+      case "add": return cast(A + B);
+      case "sub": return cast(A - B);
+      case "mul": return cast(A * B);
+      case "mac": return cast(cast(A * B) + C);
+      default: throw new Error("unknown operation " + op);
+    }
+  }
+
+  /* ---- formatting helper shared by the traces --------------------------- */
+
+  function signedFixed(x, digits) {
+    if (!Number.isFinite(x)) return x > 0 ? "+inf" : "-inf";
+    return (x >= 0 ? "+" : "") + x.toFixed(digits);
+  }
+
+  return {
+    FORMATS: FORMATS,
+    roundToNearest: roundToNearest,
+    pack: pack, signOf: signOf, codeOf: codeOf, isZero: isZero, negate: negate,
+    logOfCode: logOfCode, clampCode: clampCode,
+    toFp32: toFp32, toFp16: toFp16, fp16Manual: fp16Manual, quantizeSource: quantizeSource,
+    encode: encode, decode: decode, describe: describe, binaryWord: binaryWord,
+    exactCorrection: exactCorrection, defaultLutSize: defaultLutSize, getLut: getLut,
+    correction: correction,
+    mul: mul, add: add, sub: sub, mac: mac,
+    absError: absError, relativeError: relativeError, errorMetric: errorMetric,
+    reference: reference, signedFixed: signedFixed
+  };
+})();
+
+if (typeof module !== "undefined" && module.exports) { module.exports = LNS; }
+</script>
+
+<script id="lns-ui">
+/* --------------------------------------------------------------------------
+ * UI layer: reads the controls, calls the core above, renders the walkthrough.
+ * ------------------------------------------------------------------------ */
+(function () {
+  "use strict";
+
+  const PRESETS = {
+    "typical values": ["3.5", "-1.25", "0.5"],
+    "powers of two (exact)": ["8", "0.25", "2"],
+    "zero + value": ["0", "2.75", "1"],
+    "both zero": ["0", "0", "0"],
+    "exact cancellation": ["2.5", "-2.5", "0"],
+    "near cancellation": ["1.0", "-0.999", "0"],
+    "very small (~1e-6)": ["1e-6", "3e-7", "0"],
+    "very large (~1e6)": ["1e6", "2.5e5", "0"],
+    "beyond LNS8 range": ["5000", "-0.0001", "1"],
+    "negative pair": ["-6.25", "-2.5", "-1.5"],
+    "random": null
+  };
+
+  const $ = function (id) { return document.getElementById(id); };
+  const el = function (tag, attrs, text) {
+    const node = document.createElement(tag);
+    if (attrs) { for (const k in attrs) { if (attrs[k] !== null) node.setAttribute(k, attrs[k]); } }
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  };
+
+  function fmtFloat(x) {
+    if (x === 0) return "0";
+    if (!Number.isFinite(x)) return x > 0 ? "inf" : "-inf";
+    const abs = Math.abs(x);
+    if (abs >= 1e-4 && abs < 1e9) {
+      return parseFloat(x.toPrecision(9)).toString();
+    }
+    return x.toExponential(6);
+  }
+  function fmtError(x) {
+    if (!Number.isFinite(x)) return "inf";
+    return x === 0 ? "0" : x.toExponential(4);
+  }
+  function randomOperand() {
+    const magnitude = Math.pow(10, Math.random() * 6 - 3);
+    const value = (Math.random() < 0.5 ? -1 : 1) * magnitude;
+    return parseFloat(value.toPrecision(4)).toString();
+  }
+
+  function buildTable(node, headers, rows, monoColumns) {
+    node.textContent = "";
+    const thead = el("thead"), tr = el("tr");
+    headers.forEach(function (h) { tr.appendChild(el("th", null, h)); });
+    thead.appendChild(tr);
+    node.appendChild(thead);
+    const tbody = el("tbody");
+    rows.forEach(function (row) {
+      const line = el("tr");
+      row.forEach(function (cell, i) {
+        const td = el("td");
+        if (monoColumns && monoColumns.indexOf(i) !== -1) td.className = "mono";
+        if (cell && typeof cell === "object" && cell.html) {
+          td.innerHTML = cell.html;
+          if (cell.cls) td.className = (td.className + " " + cell.cls).trim();
+        } else {
+          td.textContent = cell;
+        }
+        line.appendChild(td);
+      });
+      tbody.appendChild(line);
+    });
+    node.appendChild(tbody);
+  }
+
+  function notice(container, kind, html) {
+    const div = el("div", { class: "notice " + kind });
+    div.innerHTML = html;
+    container.appendChild(div);
+  }
+
+  function currentSettings() {
+    const fmt = LNS.FORMATS[$("fmt").value];
+    const mode = $("mode").value;
+    const decimate = parseInt($("decimate").value, 10);
+    const full = LNS.defaultLutSize(fmt);
+    const lutSize = mode === "lut" ? Math.floor((full - 1) / decimate) + 1 : null;
+    return { fmt: fmt, source: $("src").value, mode: mode, lutSize: lutSize, op: $("op").value };
+  }
+
+  function runOperation(op, words, fmt, mode, lutSize, trace) {
+    switch (op) {
+      case "convert":
+        if (trace) {
+          trace.op = "convert";
+          trace.branch = "encode / decode round trip";
+          trace.steps = [
+            "conversion is the encode step shown above; no arithmetic is performed",
+            "the decoded value below is the round-trip result"
+          ];
+        }
+        return { word: words.a, overflow: false, underflow: false };
+      case "add": return LNS.add(words.a, words.b, fmt, mode, lutSize, trace);
+      case "sub": return LNS.sub(words.a, words.b, fmt, mode, lutSize, trace);
+      case "mul": return LNS.mul(words.a, words.b, fmt, trace);
+      case "mac": return LNS.mac(words.a, words.b, words.acc, fmt, mode, lutSize, trace);
+      default: throw new Error("unknown operation " + op);
+    }
+  }
+
+  /* ---- rendering -------------------------------------------------------- */
+
+  function render() {
+    const cfg = currentSettings();
+    const fmt = cfg.fmt;
+    const op = cfg.op;
+
+    $("b").disabled = op === "convert";
+    $("acc").disabled = op !== "mac";
+    $("decimate").disabled = cfg.mode !== "lut";
+
+    const errorBox = $("input-error");
+    errorBox.textContent = "";
+
+    const raw = { a: $("a").value, b: $("b").value, acc: $("acc").value };
+    const values = {};
+    let bad = null;
+    ["a", "b", "acc"].forEach(function (name) {
+      const parsed = parseFloat(raw[name]);
+      if (!isFinite(parsed) && raw[name].trim() !== "Infinity" && raw[name].trim() !== "-Infinity") {
+        if ((name === "a") || (name === "b" && op !== "convert") || (name === "acc" && op === "mac")) {
+          bad = bad || name;
+        }
+        values[name] = 0;
+      } else {
+        values[name] = parsed;
+      }
+    });
+    if (bad) {
+      notice(errorBox, "bad", "<b>" + bad + "</b> is not a number: <code>" +
+        raw[bad].replace(/[<>&]/g, "") + "</code>");
+      return;
+    }
+
+    const a = values.a;
+    const b = op === "convert" ? 0 : values.b;
+    const acc = op === "mac" ? values.acc : 0;
+
+    /* --- 1. encode --- */
+    $("encode-hint").textContent =
+      "code = round(log2(|x|) x " + fmt.scale + " + " + fmt.bias + "), clamped to [" +
+      fmt.minCode + ", " + fmt.maxCode + "]. Code 0 is the reserved exact zero.";
+
+    const operands = [["a", a]];
+    if (op !== "convert") operands.push(["b", b]);
+    if (op === "mac") operands.push(["acc", acc]);
+
+    const encoded = {};
+    const encodeRows = [];
+    let flagged = false;
+    operands.forEach(function (pair) {
+      const name = pair[0], value = pair[1];
+      const result = LNS.encode(value, fmt, cfg.source);
+      encoded[name] = result;
+      flagged = flagged || result.overflow || result.underflow;
+      const code = LNS.codeOf(result.word, fmt);
+      const zero = code === fmt.zeroCode;
+      const hexDigits = Math.ceil(fmt.totalBits / 4);
+      encodeRows.push([
+        name,
+        fmtFloat(result.sourceValue),
+        LNS.signOf(result.word, fmt) ? "-" : "+",
+        zero ? "-inf (zero)" : LNS.signedFixed(result.log2Magnitude, 7),
+        code,
+        zero ? "reserved zero" : LNS.signedFixed(LNS.logOfCode(code, fmt), 7),
+        LNS.binaryWord(result.word, fmt),
+        "0x" + result.word.toString(16).toUpperCase().padStart(hexDigits, "0"),
+        fmtFloat(LNS.decode(result.word, fmt)),
+        result.overflow
+          ? { html: "OVERFLOW &rarr; clamped", cls: "flag-over" }
+          : result.underflow
+            ? { html: "UNDERFLOW &rarr; clamped", cls: "flag-under" }
+            : { html: "&mdash;" }
+      ]);
+    });
+    buildTable(
+      $("encode-table"),
+      ["operand", "as " + cfg.source, "sign", "log2|x|", "code", "L = (code-bias)/scale",
+       "word (bin)", "word (hex)", "decodes to", "flag"],
+      encodeRows,
+      [1, 3, 4, 5, 6, 7, 8]
+    );
+
+    const flagBox = $("encode-flags");
+    flagBox.textContent = "";
+    if (flagged) {
+      notice(flagBox, "warn",
+        "An input fell outside " + fmt.name + "'s range and was clamped to the nearest " +
+        "representable code. The library flags this rather than wrapping.");
+    }
+
+    /* --- 2. operate --- */
+    const words = {
+      a: encoded.a ? encoded.a.word : 0,
+      b: encoded.b ? encoded.b.word : 0,
+      acc: encoded.acc ? encoded.acc.word : 0
+    };
+    const trace = {};
+    const result = runOperation(op, words, fmt, cfg.mode, cfg.lutSize, trace);
+
+    const chips = $("op-chips");
+    chips.textContent = "";
+    [
+      ["Branch taken", trace.branch || "-"],
+      ["Correction formula", trace.formula || "none needed"],
+      ["dL (log-domain gap)", trace.d !== undefined ? LNS.signedFixed(trace.d, 7) : "-"],
+      ["Correction term", trace.correction !== undefined ? LNS.signedFixed(trace.correction, 7) : "-"]
+    ].forEach(function (pair) {
+      const chip = el("div", { class: "chip" });
+      chip.appendChild(el("div", { class: "k" }, pair[0]));
+      chip.appendChild(el("div", { class: "v" }, pair[1]));
+      chips.appendChild(chip);
+    });
+
+    $("trace").textContent = (trace.steps || ["(no steps recorded)"]).join("\n");
+    $("trace-hint").textContent = trace.dCode !== undefined
+      ? "dL is exact: it is the integer code difference " + trace.dCode + " divided by the " +
+        "scale " + fmt.scale + ". That is why a full-resolution LUT lookup can never miss an entry."
+      : "";
+
+    /* --- 3. result and comparison --- */
+    const lnsValue = LNS.decode(result.word, fmt);
+    const ref32 = LNS.reference(op, a, b, acc, LNS.toFp32);
+    const ref16 = LNS.reference(op, a, b, acc, LNS.toFp16);
+    const err32 = LNS.errorMetric(ref32, lnsValue);
+    const err16 = LNS.errorMetric(ref16, lnsValue);
+    const resultCode = LNS.codeOf(result.word, fmt);
+    const hexDigits = Math.ceil(fmt.totalBits / 4);
+
+    const cols = $("result-cols");
+    cols.textContent = "";
+
+    const lnsCard = el("div", { class: "stat" });
+    lnsCard.appendChild(el("h3", null, fmt.name + " result"));
+    lnsCard.appendChild(el("div", { class: "big" }, fmtFloat(lnsValue)));
+    lnsCard.appendChild(el("div", { class: "sub" },
+      "word  = 0x" + result.word.toString(16).toUpperCase().padStart(hexDigits, "0") + "\n" +
+      "bits  = " + LNS.binaryWord(result.word, fmt) + "\n" +
+      "sign  = " + LNS.signOf(result.word, fmt) + "\n" +
+      "code  = " + resultCode +
+      (resultCode === fmt.zeroCode
+        ? "  (reserved zero)"
+        : "\nL     = " + LNS.signedFixed(LNS.logOfCode(resultCode, fmt), 7))));
+    cols.appendChild(lnsCard);
+
+    [["FP32 reference", ref32, err32], ["FP16 reference", ref16, err16]].forEach(function (entry) {
+      const card = el("div", { class: "stat" });
+      card.appendChild(el("h3", null, entry[0]));
+      card.appendChild(el("div", { class: "big" }, fmtFloat(entry[1])));
+      card.appendChild(el("div", { class: "sub" },
+        (entry[2].kind === "rel" ? "relative" : "absolute") + " error = " + fmtError(entry[2].error)));
+      cols.appendChild(card);
+    });
+
+    const notices = $("result-notices");
+    notices.textContent = "";
+    if (result.overflow) {
+      notice(notices, "bad",
+        "Result overflowed " + fmt.name + " and was clamped to the maximum code (" +
+        fmt.maxValue.toExponential(3) + ").");
+    }
+    if (result.underflow) {
+      notice(notices, "warn",
+        "Result underflowed and was clamped to the smallest nonzero code (" +
+        fmt.minValue.toExponential(3) + "). This is the near-cancellation regime: the " +
+        "result is <b>not</b> flushed to zero, because zero is a reserved exact value.");
+    }
+    if (trace.branch === "exact-cancellation") {
+      notice(notices, "info",
+        "The operands had identical codes and opposite signs, so they cancel exactly. " +
+        "The <code>-inf</code> singularity of <code>log2(1 - 2**0)</code> is handled by " +
+        "comparing codes, never by evaluating the correction function.");
+    }
+    if (trace.branch === "zero-operand" || trace.branch === "both-zero") {
+      notice(notices, "info",
+        "A zero operand is handled by the reserved sentinel: the other operand passes " +
+        "through untouched, with no rounding and no correction term.");
+    }
+
+    /* --- 4. every configuration --- */
+    const compareRows = [];
+    Object.keys(LNS.FORMATS).forEach(function (name) {
+      const other = LNS.FORMATS[name];
+      const otherWords = {
+        a: LNS.encode(a, other, cfg.source).word,
+        b: op === "convert" ? 0 : LNS.encode(b, other, cfg.source).word,
+        acc: op === "mac" ? LNS.encode(acc, other, cfg.source).word : 0
+      };
+      const full = LNS.defaultLutSize(other);
+      const configs = [["exact", "exact", null]];
+      if (op === "add" || op === "sub" || op === "mac") {
+        configs.push(["lut (full, " + full + ")", "lut", full]);
+        configs.push(["lut (1/8, " + (Math.floor((full - 1) / 8) + 1) + ")", "lut",
+                      Math.floor((full - 1) / 8) + 1]);
+      }
+      configs.forEach(function (config) {
+        const out = runOperation(op, otherWords, other, config[1], config[2], null);
+        const value = LNS.decode(out.word, other);
+        const metric = LNS.errorMetric(ref32, value);
+        compareRows.push([
+          name, config[0], fmtFloat(value),
+          metric.kind + " " + fmtError(metric.error),
+          (out.overflow ? "overflow " : "") + (out.underflow ? "underflow" : "") || "-"
+        ]);
+      });
+    });
+    buildTable($("compare-table"),
+      ["format", "log-add mode", "result", "error vs FP32", "flags"],
+      compareRows, [2, 3]);
+
+    renderFormatTable();
+    renderCurve(fmt, cfg.lutSize);
+  }
+
+  function renderFormatTable() {
+    const rows = Object.keys(LNS.FORMATS).map(function (name) {
+      const f = LNS.FORMATS[name];
+      return [
+        name, f.totalBits,
+        "1 sign + " + f.intBits + " int + " + f.fracBits + " frac",
+        f.bias,
+        "1/" + f.scale + " = " + f.logStep,
+        "[" + f.minLog + ", " + f.maxLog + "]",
+        f.minValue.toExponential(4) + " ... " + f.maxValue.toExponential(4),
+        (f.maxLog - f.minLog).toFixed(2),
+        (f.maxRelStepError * 100).toFixed(4) + "%",
+        "0 = zero, 1..." + f.maxCode + " = magnitudes"
+      ];
+    });
+    buildTable($("format-table"),
+      ["format", "bits", "layout", "bias", "log-step", "log2 range", "magnitude range",
+       "binades", "worst-case rel. error", "codes"],
+      rows, [3, 4, 5, 6, 7, 8]);
+  }
+
+  function renderCurve(fmt, lutSize) {
+    const W = 460, H = 250, padL = 46, padR = 12, padT = 12, padB = 30;
+    const span = Math.min(6, fmt.lutDomain);
+    const lutAdd = LNS.getLut(fmt, "add", lutSize);
+    const yMin = 0, yMax = 1.05;
+
+    const xOf = function (d) { return padL + (-d / span) * (W - padL - padR); };
+    const yOf = function (v) { return H - padB - ((v - yMin) / (yMax - yMin)) * (H - padT - padB); };
+
+    let exactPath = "", lutPath = "";
+    const steps = 240;
+    for (let i = 0; i <= steps; i++) {
+      const d = -span * i / steps;
+      exactPath += (i === 0 ? "M" : "L") + xOf(d).toFixed(1) + "," + yOf(LNS.exactCorrection(d, "add")).toFixed(1);
+      lutPath += (i === 0 ? "M" : "L") + xOf(d).toFixed(1) + "," + yOf(lutAdd.lookup(d)).toFixed(1);
+    }
+
+    let ticks = "";
+    for (let t = 0; t <= span; t += span / 3) {
+      ticks += '<line x1="' + xOf(-t) + '" y1="' + (H - padB) + '" x2="' + xOf(-t) + '" y2="' + (H - padB + 4) +
+        '" stroke="currentColor" opacity="0.35"/>' +
+        '<text x="' + xOf(-t) + '" y="' + (H - padB + 16) + '" text-anchor="middle">' + (-t).toFixed(1) + '</text>';
+    }
+    for (let v = 0; v <= 1.0001; v += 0.25) {
+      ticks += '<line x1="' + (padL - 4) + '" y1="' + yOf(v) + '" x2="' + (W - padR) + '" y2="' + yOf(v) +
+        '" stroke="currentColor" opacity="0.12"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (yOf(v) + 3) + '" text-anchor="end">' + v.toFixed(2) + '</text>';
+    }
+
+    $("curve").innerHTML =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" ' +
+      'aria-label="log2(1 + 2^d) plotted against its quantised lookup table">' +
+      ticks +
+      '<path d="' + lutPath + '" fill="none" stroke="var(--warn)" stroke-width="2.5" opacity="0.95"/>' +
+      '<path d="' + exactPath + '" fill="none" stroke="var(--accent)" stroke-width="1.6"/>' +
+      '<text x="' + (W / 2) + '" y="' + (H - 2) + '" text-anchor="middle">d  (log-domain gap)</text>' +
+      '<text x="' + (padL + 8) + '" y="' + (padT + 12) + '" fill="var(--accent)">exact log2(1 + 2^d)</text>' +
+      '<text x="' + (padL + 8) + '" y="' + (padT + 26) + '" fill="var(--warn)">LUT, ' +
+        lutAdd.size + ' entries on the ' + fmt.name + ' grid</text>' +
+      '</svg>';
+  }
+
+  /* ---- wiring ----------------------------------------------------------- */
+
+  const presetSelect = $("preset");
+  Object.keys(PRESETS).forEach(function (name) {
+    presetSelect.appendChild(el("option", { value: name }, name));
+  });
+
+  presetSelect.addEventListener("change", function () {
+    const chosen = PRESETS[presetSelect.value];
+    const trio = chosen || [randomOperand(), randomOperand(), randomOperand()];
+    $("a").value = trio[0];
+    $("b").value = trio[1];
+    $("acc").value = trio[2];
+    render();
+  });
+
+  ["op", "a", "b", "acc", "fmt", "src", "mode", "decimate"].forEach(function (id) {
+    const node = $(id);
+    node.addEventListener("input", render);
+    node.addEventListener("change", render);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
