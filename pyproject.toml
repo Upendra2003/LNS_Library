@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lns-arith"
+version = "0.1.0"
+description = "Logarithmic Number System (LNS) arithmetic simulator for DNN acceleration studies"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+keywords = ["logarithmic number system", "lns", "quantization", "dnn", "accelerator", "arithmetic"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+
+# The arithmetic core is deliberately dependency-free: IEEE source-format
+# rounding uses the standard library's `struct` ('f' and 'e' codes) rather than
+# numpy, so `import lns_arith` works in any Python 3.10+ environment.
+dependencies = []
+
+[project.optional-dependencies]
+web = [
+    "streamlit>=1.30",
+    "pandas>=2.0",
+    "altair>=5.0",
+]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/lns-arith"
+
+[tool.setuptools]
+packages = ["lns_arith"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "error::lns_arith.errors.LNSWarning",
+]
